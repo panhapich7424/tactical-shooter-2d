@@ -5,6 +5,7 @@
 export const firebaseConfig = {
   apiKey: "AIzaSyDQ947Jspht10r-uuADiyw8q-zzwi5FZg8",
   authDomain: "tactical-shooter-16e81.firebaseapp.com",
+  databaseURL: "https://tactical-shooter-16e81-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "tactical-shooter-16e81",
   storageBucket: "tactical-shooter-16e81.firebasestorage.app",
   messagingSenderId: "729795456206",
