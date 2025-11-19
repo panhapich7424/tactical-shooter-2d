@@ -1,6 +1,16 @@
+import { rtdb } from '../network/rt-db.js';
+import { PlayerInterpolation } from '../network/interpolation.js';
+
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
+        this.interpolation = new PlayerInterpolation();
+        this.remotePlayers = {};
+    }
+
+    init(data) {
+        this.isMultiplayer = data.multiplayer || false;
+        this.roomId = data.roomId || null;
     }
 
     create() {
@@ -45,6 +55,11 @@ export default class GameScene extends Phaser.Scene {
         
         // Setup all collisions after everything is created
         this.setupCollisions();
+        
+        // Initialize multiplayer if enabled
+        if (this.isMultiplayer) {
+            this.initializeMultiplayer();
+        }
     }
 
     createMap() {
@@ -119,7 +134,13 @@ export default class GameScene extends Phaser.Scene {
         this.ammoText.setScrollFactor(0);
     }
 
-    update() {
+    update(time, delta) {
+        // Update interpolation for remote players
+        if (this.isMultiplayer) {
+            this.interpolation.update(delta / 1000);
+            this.updateRemotePlayers();
+        }
+        
         // Player movement
         this.player.setVelocity(0);
         
@@ -182,6 +203,140 @@ export default class GameScene extends Phaser.Scene {
                     bullet.destroy();
                 }
             });
+        }
+    }
+
+    // Multiplayer methods
+    initializeMultiplayer() {
+        console.log('Initializing multiplayer...');
+        
+        // Start sending player updates at 10 Hz
+        rtdb.startUpdating(() => {
+            return {
+                x: this.player.x,
+                y: this.player.y,
+                rotation: this.player.rotation,
+                health: 100,
+                username: `Player_${rtdb.getUserId().substring(0, 6)}`
+            };
+        });
+        
+        // Listen for other players
+        rtdb.listenToPlayers(
+            (uid, playerData, isNew) => {
+                if (isNew) {
+                    this.addRemotePlayer(uid, playerData);
+                } else {
+                    this.updateRemotePlayer(uid, playerData);
+                }
+            },
+            (uid) => {
+                this.removeRemotePlayer(uid);
+            }
+        );
+        
+        // Add multiplayer UI
+        this.multiplayerText = this.add.text(16, 84, `Room: ${this.roomId}`, {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffe66d',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        this.multiplayerText.setScrollFactor(0);
+        
+        this.playersCountText = this.add.text(16, 110, 'Players: 1', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#4ecdc4',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        this.playersCountText.setScrollFactor(0);
+    }
+
+    addRemotePlayer(uid, playerData) {
+        console.log('Adding remote player:', uid);
+        
+        // Create sprite for remote player
+        const remotePlayer = this.physics.add.sprite(playerData.x, playerData.y, 'player');
+        remotePlayer.setTint(0xff6b6b); // Different color for remote players
+        
+        // Add username label
+        const nameText = this.add.text(0, -25, playerData.username, {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 5, y: 2 }
+        });
+        nameText.setOrigin(0.5);
+        
+        this.remotePlayers[uid] = {
+            sprite: remotePlayer,
+            nameText: nameText
+        };
+        
+        // Add to interpolation
+        this.interpolation.updatePlayer(uid, playerData.x, playerData.y, playerData.rotation);
+        
+        this.updatePlayersCount();
+    }
+
+    updateRemotePlayer(uid, playerData) {
+        // Update interpolation target
+        this.interpolation.updatePlayer(uid, playerData.x, playerData.y, playerData.rotation);
+    }
+
+    removeRemotePlayer(uid) {
+        console.log('Removing remote player:', uid);
+        
+        if (this.remotePlayers[uid]) {
+            this.remotePlayers[uid].sprite.destroy();
+            this.remotePlayers[uid].nameText.destroy();
+            delete this.remotePlayers[uid];
+        }
+        
+        this.interpolation.removePlayer(uid);
+        this.updatePlayersCount();
+    }
+
+    updateRemotePlayers() {
+        // Update sprite positions from interpolated values
+        Object.keys(this.remotePlayers).forEach((uid) => {
+            const position = this.interpolation.getPlayerPosition(uid);
+            if (position && this.remotePlayers[uid]) {
+                const { sprite, nameText } = this.remotePlayers[uid];
+                sprite.x = position.x;
+                sprite.y = position.y;
+                sprite.rotation = position.rotation;
+                
+                // Update name position
+                nameText.x = position.x;
+                nameText.y = position.y - 25;
+            }
+        });
+    }
+
+    updatePlayersCount() {
+        if (this.playersCountText) {
+            const count = Object.keys(this.remotePlayers).length + 1;
+            this.playersCountText.setText(`Players: ${count}`);
+        }
+    }
+
+    shutdown() {
+        // Clean up multiplayer when leaving scene
+        if (this.isMultiplayer) {
+            rtdb.stopUpdating();
+            rtdb.stopListening();
+            
+            // Clean up remote players
+            Object.keys(this.remotePlayers).forEach((uid) => {
+                this.removeRemotePlayer(uid);
+            });
+            
+            this.interpolation.clear();
         }
     }
 }

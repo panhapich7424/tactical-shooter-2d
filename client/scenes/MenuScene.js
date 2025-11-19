@@ -24,27 +24,50 @@ export default class MenuScene extends Phaser.Scene {
         });
         subtitle.setOrigin(0.5);
         
-        // Play button
-        const playButton = this.add.text(width / 2, height / 2 + 50, 'PLAY', {
-            fontSize: '32px',
+        // Single Player button
+        const singlePlayerButton = this.add.text(width / 2, height / 2 + 20, 'SINGLE PLAYER', {
+            fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
             backgroundColor: '#ff6b6b',
-            padding: { x: 40, y: 15 }
+            padding: { x: 30, y: 12 }
         });
-        playButton.setOrigin(0.5);
-        playButton.setInteractive({ useHandCursor: true });
+        singlePlayerButton.setOrigin(0.5);
+        singlePlayerButton.setInteractive({ useHandCursor: true });
         
-        playButton.on('pointerover', () => {
-            playButton.setStyle({ backgroundColor: '#ff5252' });
-        });
-        
-        playButton.on('pointerout', () => {
-            playButton.setStyle({ backgroundColor: '#ff6b6b' });
+        singlePlayerButton.on('pointerover', () => {
+            singlePlayerButton.setStyle({ backgroundColor: '#ff5252' });
         });
         
-        playButton.on('pointerdown', () => {
-            this.scene.start('GameScene');
+        singlePlayerButton.on('pointerout', () => {
+            singlePlayerButton.setStyle({ backgroundColor: '#ff6b6b' });
+        });
+        
+        singlePlayerButton.on('pointerdown', () => {
+            this.scene.start('GameScene', { multiplayer: false });
+        });
+        
+        // Multiplayer button
+        const multiplayerButton = this.add.text(width / 2, height / 2 + 80, 'MULTIPLAYER', {
+            fontSize: '28px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            backgroundColor: '#4ecdc4',
+            padding: { x: 30, y: 12 }
+        });
+        multiplayerButton.setOrigin(0.5);
+        multiplayerButton.setInteractive({ useHandCursor: true });
+        
+        multiplayerButton.on('pointerover', () => {
+            multiplayerButton.setStyle({ backgroundColor: '#3db8af' });
+        });
+        
+        multiplayerButton.on('pointerout', () => {
+            multiplayerButton.setStyle({ backgroundColor: '#4ecdc4' });
+        });
+        
+        multiplayerButton.on('pointerdown', () => {
+            this.scene.start('LobbyScene');
         });
         
         // Controls info
@@ -56,7 +79,7 @@ export default class MenuScene extends Phaser.Scene {
         ];
         
         controls.forEach((text, index) => {
-            const controlText = this.add.text(width / 2, height / 2 + 150 + (index * 25), text, {
+            const controlText = this.add.text(width / 2, height / 2 + 170 + (index * 25), text, {
                 fontSize: index === 0 ? '18px' : '16px',
                 fontFamily: 'Arial',
                 color: index === 0 ? '#4ecdc4' : '#aaaaaa'

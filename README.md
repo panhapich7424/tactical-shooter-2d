@@ -6,8 +6,11 @@ A top-down 2D pixel-art tactical shooter inspired by Valorant, built with Phaser
 - Top-down tactical shooter gameplay
 - WASD movement controls
 - Mouse aiming and shooting
-- Multiplayer support via Firebase
-- Agent-based character system
+- **✅ Real-time multiplayer (up to 10 players)**
+- **✅ Room-based matchmaking**
+- **✅ Smooth interpolated movement**
+- Single player and multiplayer modes
+- Agent-based character system (coming soon)
 
 ## 🛠️ Tech Stack
 - **Frontend**: Phaser 3 (HTML5 game engine)
@@ -76,21 +79,51 @@ npm run dev
 ### Deploy via GitHub Actions
 Push to `main` branch - automatic deployment configured
 
+## 🌐 Multiplayer Setup (Phase 2)
+
+### Quick Setup (5 minutes)
+1. Enable **Realtime Database** in Firebase Console (test mode)
+2. Enable **Anonymous Authentication** in Firebase Console
+3. Deploy your code
+4. Play with friends!
+
+See **PHASE2_SETUP.md** for detailed instructions.
+
 ## 🎮 Game Controls
 - **WASD**: Move character
 - **Mouse**: Aim weapon
 - **Left Click**: Shoot
-- **E**: Use ability (future)
+- **Multiplayer**: Create/join rooms with 6-character codes
 
 ## 📦 Free Services Used
 - Firebase Free Tier (Spark Plan)
+  - Hosting
+  - Realtime Database
+  - Anonymous Authentication
+  - Cloud Functions
 - GitHub Actions (free for public repos)
 - Replit (free tier)
+- Render.com (free tier)
 
 ## 🔧 Configuration Files
 - `.firebaserc` - Firebase project configuration
 - `firebase.json` - Firebase hosting/functions config
 - `.github/workflows/deploy.yml` - Auto-deployment
+
+## 📚 Documentation
+
+- **QUICKSTART.md** - Get started in 15 minutes
+- **PHASE2_SETUP.md** - Multiplayer setup (5 minutes)
+- **MULTIPLAYER_GUIDE.md** - How to play multiplayer
+- **SETUP_GUIDE.md** - Detailed setup instructions
+- **DEPLOYMENT.md** - Deployment options
+- **RENDER_DEPLOY.md** - Deploy to Render.com
+
+## 🎯 Project Status
+
+- ✅ **Phase 1**: Single player game (COMPLETE)
+- ✅ **Phase 2**: Real-time multiplayer (COMPLETE)
+- 🔄 **Phase 3**: Server authority & combat (Coming soon)
 
 ## 📝 License
 MIT License - Free to use and modify
