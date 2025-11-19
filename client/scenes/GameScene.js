@@ -5,6 +5,8 @@ import { CompetitiveMap } from '../maps/CompetitiveMap.js';
 import { HUD } from '../ui/hud.js';
 import { BuyMenu } from '../ui/buyMenu.js';
 import { RoundTimer } from '../ui/roundTimer.js';
+import { WeaponSystem } from '../game/WeaponSystem.js';
+import { BombSystem } from '../game/BombSystem.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -31,6 +33,11 @@ export default class GameScene extends Phaser.Scene {
         this.matchId = null;
         this.myTeam = null;
         this.matchData = null;
+        this.hasBomb = false;
+        
+        // Systems
+        this.weaponSystem = null;
+        this.bombSystem = null;
     }
 
     init(data) {
@@ -109,7 +116,50 @@ export default class GameScene extends Phaser.Scene {
         
         // Initialize multiplayer if enabled
         if (this.isMultiplayer) {
+            // Set the current room/match for rtdb
+            const gameRoom = this.isCompetitive ? this.matchId : this.roomId;
+            if (gameRoom) {
+                rtdb.setCurrentRoom(gameRoom);
+            }
             this.initializeMultiplayer();
+        }
+        
+        // Initialize weapon system
+        this.weaponSystem = new WeaponSystem(this);
+        
+        // Initialize bomb system if competitive
+        if (this.isCompetitive) {
+            this.bombSystem = new BombSystem(this);
+            
+            // Assign bomb carrier if red team
+            if (this.myTeam === 'red' && this.matchData) {
+                this.assignBombCarrier();
+            }
+        }
+    }
+    
+    assignBombCarrier() {
+        // First red team player is bomb carrier
+        const redTeam = this.matchData.teams.red;
+        const userId = rtdb.getUserId();
+        
+        if (redTeam && redTeam[0] === userId) {
+            this.hasBomb = true;
+            console.log('I am the bomb carrier!');
+            
+            // Add bomb indicator
+            this.bombIndicator = this.add.text(0, -40, '💣 BOMB', {
+                fontSize: '14px',
+                fontFamily: 'Arial',
+                color: '#ff0000',
+                backgroundColor: '#000000',
+                padding: { x: 5, y: 2 },
+                fontStyle: 'bold'
+            });
+            this.bombIndicator.setOrigin(0.5);
+            this.bombIndicator.setDepth(1000);
+        } else {
+            this.hasBomb = false;
         }
     }
 
@@ -322,24 +372,38 @@ export default class GameScene extends Phaser.Scene {
             worldPoint.y
         );
         this.player.rotation = angle;
+        
+        // Update bomb indicator position
+        if (this.hasBomb && this.bombIndicator) {
+            this.bombIndicator.x = this.player.x;
+            this.bombIndicator.y = this.player.y - 40;
+        }
+        
+        // Update bomb system
+        if (this.bombSystem) {
+            this.bombSystem.update(delta);
+        }
     }
 
     shootBullet() {
+        // Get current weapon from weapon system
+        const weapon = this.weaponSystem ? this.weaponSystem.getCurrentWeapon() : this.currentWeapon;
+        
+        // Can't shoot knife, grenade, or bomb
+        if (weapon.name === 'Knife' || weapon.name === 'Grenade' || weapon.name === 'Bomb') {
+            return;
+        }
+        
         // Check fire rate
         const now = Date.now();
-        if (now - this.lastShotTime < this.currentWeapon.fireRate) {
+        if (now - this.lastShotTime < weapon.fireRate) {
             return; // Too soon to shoot again
         }
         
-        // Check ammo
-        if (this.currentAmmo <= 0) {
+        // Check ammo using weapon system
+        if (this.weaponSystem && !this.weaponSystem.useAmmo()) {
             // Try to reload
-            if (this.reserveAmmo > 0) {
-                const reloadAmount = Math.min(this.currentWeapon.ammo, this.reserveAmmo);
-                this.currentAmmo = reloadAmount;
-                this.reserveAmmo -= reloadAmount;
-                this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
-            }
+            this.weaponSystem.reload();
             return; // No ammo
         }
         
@@ -365,10 +429,8 @@ export default class GameScene extends Phaser.Scene {
             
             bullet.setVelocity(velocityX, velocityY);
             
-            // Update ammo
-            this.currentAmmo--;
+            // Update last shot time
             this.lastShotTime = now;
-            this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
             
             // Send bullet to other players if multiplayer
             if (this.isMultiplayer) {
@@ -394,13 +456,24 @@ export default class GameScene extends Phaser.Scene {
     initializeMultiplayer() {
         console.log('Initializing multiplayer...');
         
+        // Use matchId for competitive, roomId for casual
+        const gameRoom = this.isCompetitive ? this.matchId : this.roomId;
+        
+        if (!gameRoom) {
+            console.error('No room/match ID provided');
+            return;
+        }
+        
         // Start sending player updates at 10 Hz
         rtdb.startUpdating(() => {
+            if (!this.player) return null;
+            
             return {
                 x: this.player.x,
                 y: this.player.y,
                 rotation: this.player.rotation,
-                health: 100,
+                health: this.playerHealth,
+                team: this.myTeam || 'none',
                 username: `Player_${rtdb.getUserId().substring(0, 6)}`
             };
         });
@@ -428,7 +501,8 @@ export default class GameScene extends Phaser.Scene {
         this.remoteBullets = {};
         
         // Add multiplayer UI
-        this.multiplayerText = this.add.text(16, 84, `Room: ${this.roomId}`, {
+        const roomLabel = this.isCompetitive ? 'Match' : 'Room';
+        this.multiplayerText = this.add.text(16, 84, `${roomLabel}: ${gameRoom.substring(0, 8)}`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffe66d',
@@ -436,6 +510,7 @@ export default class GameScene extends Phaser.Scene {
             padding: { x: 10, y: 5 }
         });
         this.multiplayerText.setScrollFactor(0);
+        this.multiplayerText.setDepth(1000);
         
         this.playersCountText = this.add.text(16, 110, 'Players: 1', {
             fontSize: '16px',
@@ -445,6 +520,7 @@ export default class GameScene extends Phaser.Scene {
             padding: { x: 10, y: 5 }
         });
         this.playersCountText.setScrollFactor(0);
+        this.playersCountText.setDepth(1000);
     }
 
     addRemotePlayer(uid, playerData) {
@@ -559,6 +635,14 @@ export default class GameScene extends Phaser.Scene {
     }
 
     shutdown() {
+        // Clean up systems
+        if (this.weaponSystem) {
+            this.weaponSystem.destroy();
+        }
+        if (this.bombSystem) {
+            this.bombSystem.destroy();
+        }
+        
         // Clean up UI
         if (this.hud) {
             this.hud.destroy();

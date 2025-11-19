@@ -121,7 +121,10 @@ export default class MatchmakingScene extends Phaser.Scene {
 
     async initializeFirebase() {
         try {
-            await rtdb.initialize();
+            // Make sure we're authenticated before allowing matchmaking
+            if (!rtdb.currentUser) {
+                await rtdb.initialize();
+            }
             this.statusText.setText(`Ready to find match`);
         } catch (error) {
             console.error('Firebase init error:', error);

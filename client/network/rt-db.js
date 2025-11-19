@@ -113,6 +113,11 @@ class RealtimeDatabase {
         console.log('Left room');
     }
 
+    // Set current room (can be roomId or matchId)
+    setCurrentRoom(roomId) {
+        this.currentRoom = roomId;
+    }
+
     // Start sending player updates at 10 Hz
     startUpdating(getPlayerDataCallback) {
         if (this.updateInterval) {
@@ -122,7 +127,9 @@ class RealtimeDatabase {
         this.updateInterval = setInterval(() => {
             if (this.currentRoom && this.currentUser) {
                 const playerData = getPlayerDataCallback();
-                this.updatePlayerPosition(playerData);
+                if (playerData) {
+                    this.updatePlayerPosition(playerData);
+                }
             }
         }, 100); // 10 Hz = 100ms
 
