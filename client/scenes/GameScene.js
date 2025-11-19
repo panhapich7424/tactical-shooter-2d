@@ -4,7 +4,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
-        // Create tilemap
+        // Create tilemap (this creates this.walls)
         this.createMap();
         
         // Create player
@@ -43,10 +43,8 @@ export default class GameScene extends Phaser.Scene {
         // UI
         this.createUI();
         
-        // Collisions
-        this.physics.add.collider(this.bullets, this.walls, (bullet) => {
-            bullet.destroy();
-        });
+        // Setup all collisions after everything is created
+        this.setupCollisions();
     }
 
     createMap() {
@@ -61,7 +59,7 @@ export default class GameScene extends Phaser.Scene {
             }
         }
         
-        // Create walls
+        // Create walls group
         this.walls = this.physics.add.staticGroup();
         
         // Border walls
@@ -83,9 +81,20 @@ export default class GameScene extends Phaser.Scene {
         
         // Set world bounds
         this.physics.world.setBounds(0, 0, mapWidth * tileSize, mapHeight * tileSize);
+    }
+
+    setupCollisions() {
+        // Collision with player and walls
+        if (this.player && this.walls) {
+            this.physics.add.collider(this.player, this.walls);
+        }
         
-        // Collision with player
-        this.physics.add.collider(this.player, this.walls);
+        // Collision with bullets and walls
+        if (this.bullets && this.walls) {
+            this.physics.add.collider(this.bullets, this.walls, (bullet) => {
+                bullet.destroy();
+            });
+        }
     }
 
     createUI() {
