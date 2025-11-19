@@ -17,6 +17,34 @@
             ".read": true,
             ".write": "auth != null"
           }
+        },
+        "gameState": {
+          ".read": true,
+          ".write": "auth != null"
+        },
+        "serverState": {
+          ".read": true,
+          ".write": false,
+          "projectiles": {
+            ".read": true,
+            ".write": false
+          }
+        },
+        "serverEvents": {
+          ".read": true,
+          ".write": false,
+          "damage": {
+            ".read": true,
+            ".write": false
+          },
+          "kills": {
+            ".read": true,
+            ".write": false
+          }
+        },
+        "violations": {
+          ".read": false,
+          ".write": false
         }
       }
     }

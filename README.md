@@ -123,7 +123,9 @@ See **PHASE2_SETUP.md** for detailed instructions.
 
 - ✅ **Phase 1**: Single player game (COMPLETE)
 - ✅ **Phase 2**: Real-time multiplayer (COMPLETE)
-- 🔄 **Phase 3**: Server authority & combat (Coming soon)
+- ✅ **Phase 3**: Core game loop (COMPLETE)
+- ✅ **Phase 4**: Server-authoritative logic (COMPLETE)
+- ✅ **Phase 5**: Event-based server tick (COMPLETE)
 
 ## 📝 License
 MIT License - Free to use and modify
