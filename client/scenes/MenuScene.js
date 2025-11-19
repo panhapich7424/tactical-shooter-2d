@@ -47,27 +47,27 @@ export default class MenuScene extends Phaser.Scene {
             this.scene.start('GameScene', { multiplayer: false });
         });
         
-        // Multiplayer button
-        const multiplayerButton = this.add.text(width / 2, height / 2 + 80, 'MULTIPLAYER', {
+        // Competitive button
+        const competitiveButton = this.add.text(width / 2, height / 2 + 80, 'COMPETITIVE (5v5)', {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
             backgroundColor: '#4ecdc4',
             padding: { x: 30, y: 12 }
         });
-        multiplayerButton.setOrigin(0.5);
-        multiplayerButton.setInteractive({ useHandCursor: true });
+        competitiveButton.setOrigin(0.5);
+        competitiveButton.setInteractive({ useHandCursor: true });
         
-        multiplayerButton.on('pointerover', () => {
-            multiplayerButton.setStyle({ backgroundColor: '#3db8af' });
+        competitiveButton.on('pointerover', () => {
+            competitiveButton.setStyle({ backgroundColor: '#3db8af' });
         });
         
-        multiplayerButton.on('pointerout', () => {
-            multiplayerButton.setStyle({ backgroundColor: '#4ecdc4' });
+        competitiveButton.on('pointerout', () => {
+            competitiveButton.setStyle({ backgroundColor: '#4ecdc4' });
         });
         
-        multiplayerButton.on('pointerdown', () => {
-            this.scene.start('LobbyScene');
+        competitiveButton.on('pointerdown', () => {
+            this.scene.start('MatchmakingScene');
         });
         
         // Controls info

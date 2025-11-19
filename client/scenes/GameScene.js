@@ -1,5 +1,7 @@
 import { rtdb } from '../network/rt-db.js';
 import { PlayerInterpolation } from '../network/interpolation.js';
+import { matchmaking } from '../network/matchmaking.js';
+import { CompetitiveMap } from '../maps/CompetitiveMap.js';
 import { HUD } from '../ui/hud.js';
 import { BuyMenu } from '../ui/buyMenu.js';
 import { RoundTimer } from '../ui/roundTimer.js';
@@ -23,20 +25,52 @@ export default class GameScene extends Phaser.Scene {
         this.currentAmmo = 12;
         this.reserveAmmo = 36;
         this.lastShotTime = 0;
+        
+        // Competitive mode
+        this.isCompetitive = false;
+        this.matchId = null;
+        this.myTeam = null;
+        this.matchData = null;
     }
 
     init(data) {
         this.isMultiplayer = data.multiplayer || false;
         this.roomId = data.roomId || null;
+        this.isCompetitive = data.competitive || false;
+        this.matchId = data.matchId || null;
     }
 
-    create() {
-        // Create tilemap (this creates this.walls)
-        this.createMap();
+    async create() {
+        // Load match data if competitive
+        if (this.isCompetitive && this.matchId) {
+            await this.loadMatchData();
+        }
+        
+        // Create map (competitive or casual)
+        if (this.isCompetitive) {
+            this.competitiveMap = new CompetitiveMap(this);
+            this.competitiveMap.create();
+            this.walls = this.competitiveMap.getWalls();
+        } else {
+            this.createMap();
+        }
+        
+        // Get spawn position based on team
+        let spawnPos = { x: 640, y: 360 };
+        if (this.isCompetitive && this.myTeam) {
+            spawnPos = this.competitiveMap.getSpawnPoint(this.myTeam);
+        }
         
         // Create player
-        this.player = this.physics.add.sprite(640, 360, 'player');
+        this.player = this.physics.add.sprite(spawnPos.x, spawnPos.y, 'player');
         this.player.setCollideWorldBounds(true);
+        
+        // Set player color based on team
+        if (this.myTeam === 'red') {
+            this.player.setTint(0xff0000);
+        } else if (this.myTeam === 'blue') {
+            this.player.setTint(0x0000ff);
+        }
         
         // Player properties
         this.playerSpeed = 200;
@@ -129,6 +163,25 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    async loadMatchData() {
+        try {
+            this.matchData = await matchmaking.getMatch(this.matchId);
+            const userId = rtdb.getUserId();
+            
+            // Determine my team
+            if (this.matchData.teams.red.includes(userId)) {
+                this.myTeam = 'red';
+            } else if (this.matchData.teams.blue.includes(userId)) {
+                this.myTeam = 'blue';
+            }
+            
+            console.log('Match loaded. My team:', this.myTeam);
+            console.log('Match data:', this.matchData);
+        } catch (error) {
+            console.error('Failed to load match data:', error);
+        }
+    }
+
     initializeUI() {
         // Create HUD
         this.hud = new HUD(this);
@@ -137,6 +190,23 @@ export default class GameScene extends Phaser.Scene {
         this.hud.updateMoney(this.playerMoney);
         this.hud.updateWeapon(this.currentWeapon.name);
         this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
+        
+        // Show team info if competitive
+        if (this.isCompetitive && this.myTeam) {
+            const teamColor = this.myTeam === 'red' ? '#ff0000' : '#0000ff';
+            const teamName = this.myTeam === 'red' ? 'RED TEAM' : 'BLUE TEAM';
+            
+            this.teamText = this.add.text(16, 140, teamName, {
+                fontSize: '20px',
+                fontFamily: 'Arial',
+                color: teamColor,
+                backgroundColor: '#000000',
+                padding: { x: 10, y: 5 },
+                fontStyle: 'bold'
+            });
+            this.teamText.setScrollFactor(0);
+            this.teamText.setDepth(1000);
+        }
         
         // Create Buy Menu
         this.buyMenu = new BuyMenu(this);
@@ -362,7 +432,20 @@ export default class GameScene extends Phaser.Scene {
         
         // Create sprite for remote player
         const remotePlayer = this.physics.add.sprite(playerData.x, playerData.y, 'player');
-        remotePlayer.setTint(0xff6b6b); // Different color for remote players
+        
+        // Set color based on team in competitive mode
+        if (this.isCompetitive && this.matchData) {
+            let playerTeam = null;
+            if (this.matchData.teams.red.includes(uid)) {
+                playerTeam = 'red';
+                remotePlayer.setTint(0xff0000);
+            } else if (this.matchData.teams.blue.includes(uid)) {
+                playerTeam = 'blue';
+                remotePlayer.setTint(0x0000ff);
+            }
+        } else {
+            remotePlayer.setTint(0xff6b6b); // Default color for non-competitive
+        }
         
         // Add username label
         const nameText = this.add.text(0, -25, playerData.username, {
