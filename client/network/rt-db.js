@@ -154,6 +154,54 @@ class RealtimeDatabase {
         });
     }
 
+    // Send bullet shot event
+    async shootBullet(bulletData) {
+        if (!this.currentRoom || !this.currentUser) return;
+
+        const bulletId = `${this.currentUser.uid}_${Date.now()}`;
+        const bulletRef = ref(this.db, `rooms/${this.currentRoom}/bullets/${bulletId}`);
+        
+        await set(bulletRef, {
+            shooterId: this.currentUser.uid,
+            x: bulletData.x,
+            y: bulletData.y,
+            velocityX: bulletData.velocityX,
+            velocityY: bulletData.velocityY,
+            rotation: bulletData.rotation,
+            timestamp: Date.now()
+        });
+
+        // Auto-remove bullet after 2 seconds
+        setTimeout(async () => {
+            await remove(bulletRef);
+        }, 2000);
+    }
+
+    // Listen for bullets
+    listenToBullets(onBulletFired) {
+        if (!this.currentRoom) return;
+
+        const bulletsRef = ref(this.db, `rooms/${this.currentRoom}/bullets`);
+
+        this.listeners.bullets = onValue(bulletsRef, (snapshot) => {
+            const bullets = snapshot.val();
+            
+            if (bullets) {
+                Object.keys(bullets).forEach((bulletId) => {
+                    const bulletData = bullets[bulletId];
+                    
+                    // Skip own bullets (already rendered locally)
+                    if (bulletData.shooterId === this.currentUser.uid) return;
+                    
+                    // Fire callback for remote bullets
+                    onBulletFired(bulletId, bulletData);
+                });
+            }
+        });
+
+        console.log('Listening to bullets in room:', this.currentRoom);
+    }
+
     // Listen for other players in the room
     listenToPlayers(onPlayerUpdate, onPlayerRemoved) {
         if (!this.currentRoom) return;
@@ -195,7 +243,7 @@ class RealtimeDatabase {
 
     // Stop listening to updates
     stopListening() {
-        if (this.listeners.players) {
+        if (this.listeners.players || this.listeners.bullets) {
             // Firebase will automatically unsubscribe when reference is cleared
             this.listeners = {};
         }

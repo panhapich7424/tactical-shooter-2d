@@ -192,10 +192,21 @@ export default class GameScene extends Phaser.Scene {
             );
             
             const bulletSpeed = 600;
-            bullet.setVelocity(
-                Math.cos(angle) * bulletSpeed,
-                Math.sin(angle) * bulletSpeed
-            );
+            const velocityX = Math.cos(angle) * bulletSpeed;
+            const velocityY = Math.sin(angle) * bulletSpeed;
+            
+            bullet.setVelocity(velocityX, velocityY);
+            
+            // Send bullet to other players if multiplayer
+            if (this.isMultiplayer) {
+                rtdb.shootBullet({
+                    x: this.player.x,
+                    y: this.player.y,
+                    velocityX: velocityX,
+                    velocityY: velocityY,
+                    rotation: angle
+                });
+            }
             
             // Auto-destroy bullet after 2 seconds
             this.time.delayedCall(2000, () => {
@@ -234,6 +245,14 @@ export default class GameScene extends Phaser.Scene {
                 this.removeRemotePlayer(uid);
             }
         );
+        
+        // Listen for bullets from other players
+        rtdb.listenToBullets((bulletId, bulletData) => {
+            this.spawnRemoteBullet(bulletId, bulletData);
+        });
+        
+        // Track spawned remote bullets to avoid duplicates
+        this.remoteBullets = {};
         
         // Add multiplayer UI
         this.multiplayerText = this.add.text(16, 84, `Room: ${this.roomId}`, {
@@ -325,6 +344,34 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    spawnRemoteBullet(bulletId, bulletData) {
+        // Avoid spawning duplicate bullets
+        if (this.remoteBullets[bulletId]) return;
+
+        // Create bullet sprite
+        const bullet = this.physics.add.sprite(bulletData.x, bulletData.y, 'bullet');
+        bullet.setVelocity(bulletData.velocityX, bulletData.velocityY);
+        
+        // Add collision with walls
+        if (this.walls) {
+            this.physics.add.collider(bullet, this.walls, () => {
+                bullet.destroy();
+                delete this.remoteBullets[bulletId];
+            });
+        }
+        
+        // Store reference
+        this.remoteBullets[bulletId] = bullet;
+        
+        // Auto-destroy after 2 seconds
+        this.time.delayedCall(2000, () => {
+            if (bullet && bullet.active) {
+                bullet.destroy();
+            }
+            delete this.remoteBullets[bulletId];
+        });
+    }
+
     shutdown() {
         // Clean up multiplayer when leaving scene
         if (this.isMultiplayer) {
@@ -335,6 +382,14 @@ export default class GameScene extends Phaser.Scene {
             Object.keys(this.remotePlayers).forEach((uid) => {
                 this.removeRemotePlayer(uid);
             });
+            
+            // Clean up remote bullets
+            Object.keys(this.remoteBullets).forEach((bulletId) => {
+                if (this.remoteBullets[bulletId] && this.remoteBullets[bulletId].active) {
+                    this.remoteBullets[bulletId].destroy();
+                }
+            });
+            this.remoteBullets = {};
             
             this.interpolation.clear();
         }
