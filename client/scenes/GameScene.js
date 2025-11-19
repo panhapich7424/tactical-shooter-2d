@@ -1,11 +1,28 @@
 import { rtdb } from '../network/rt-db.js';
 import { PlayerInterpolation } from '../network/interpolation.js';
+import { HUD } from '../ui/hud.js';
+import { BuyMenu } from '../ui/buyMenu.js';
+import { RoundTimer } from '../ui/roundTimer.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
         this.interpolation = new PlayerInterpolation();
         this.remotePlayers = {};
+        
+        // Game state
+        this.playerHealth = 100;
+        this.playerMoney = 800;
+        this.currentWeapon = {
+            name: 'Pistol',
+            damage: 20,
+            fireRate: 300,
+            ammo: 12,
+            reserve: 36
+        };
+        this.currentAmmo = 12;
+        this.reserveAmmo = 36;
+        this.lastShotTime = 0;
     }
 
     init(data) {
@@ -50,11 +67,11 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.startFollow(this.player);
         this.cameras.main.setZoom(1);
         
-        // UI
-        this.createUI();
-        
         // Setup all collisions after everything is created
         this.setupCollisions();
+        
+        // Initialize UI components
+        this.initializeUI();
         
         // Initialize multiplayer if enabled
         if (this.isMultiplayer) {
@@ -112,26 +129,69 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
-    createUI() {
-        // Health bar
-        this.healthText = this.add.text(16, 16, 'Health: 100', {
-            fontSize: '18px',
-            fontFamily: 'Arial',
-            color: '#4ecdc4',
-            backgroundColor: '#000000',
-            padding: { x: 10, y: 5 }
-        });
-        this.healthText.setScrollFactor(0);
+    initializeUI() {
+        // Create HUD
+        this.hud = new HUD(this);
+        this.hud.create();
+        this.hud.updateHealth(this.playerHealth);
+        this.hud.updateMoney(this.playerMoney);
+        this.hud.updateWeapon(this.currentWeapon.name);
+        this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
         
-        // Ammo counter
-        this.ammoText = this.add.text(16, 50, 'Ammo: ∞', {
-            fontSize: '18px',
-            fontFamily: 'Arial',
-            color: '#ffff00',
-            backgroundColor: '#000000',
-            padding: { x: 10, y: 5 }
-        });
-        this.ammoText.setScrollFactor(0);
+        // Create Buy Menu
+        this.buyMenu = new BuyMenu(this);
+        this.buyMenu.create();
+        
+        // Create Round Timer
+        this.roundTimer = new RoundTimer(this);
+        this.roundTimer.start();
+        
+        // Listen to events
+        this.events.on('weaponPurchased', this.onWeaponPurchased, this);
+        this.events.on('phaseChanged', this.onPhaseChanged, this);
+        this.events.on('timerUpdate', this.onTimerUpdate, this);
+        this.events.on('roundChanged', this.onRoundChanged, this);
+    }
+
+    onWeaponPurchased(weapon) {
+        // Check if player has enough money
+        if (this.playerMoney >= weapon.price) {
+            // Deduct money
+            this.playerMoney -= weapon.price;
+            
+            // Equip weapon
+            this.currentWeapon = weapon;
+            this.currentAmmo = weapon.ammo;
+            this.reserveAmmo = weapon.reserve;
+            
+            // Update HUD
+            this.hud.updateMoney(this.playerMoney);
+            this.hud.updateWeapon(weapon.name);
+            this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
+            
+            console.log(`Purchased ${weapon.name} for $${weapon.price}`);
+        }
+    }
+
+    onPhaseChanged(phase) {
+        console.log('Phase changed:', phase);
+        this.hud.updatePhase(phase);
+        
+        // Open buy menu automatically during buy phase
+        if (phase === 'buy') {
+            this.buyMenu.open();
+        } else {
+            this.buyMenu.close();
+        }
+    }
+
+    onTimerUpdate(seconds) {
+        this.hud.updateTimer(seconds);
+    }
+
+    onRoundChanged(roundNumber) {
+        console.log('Round changed:', roundNumber);
+        this.hud.updateRound(roundNumber);
     }
 
     update(time, delta) {
@@ -175,6 +235,24 @@ export default class GameScene extends Phaser.Scene {
     }
 
     shootBullet() {
+        // Check fire rate
+        const now = Date.now();
+        if (now - this.lastShotTime < this.currentWeapon.fireRate) {
+            return; // Too soon to shoot again
+        }
+        
+        // Check ammo
+        if (this.currentAmmo <= 0) {
+            // Try to reload
+            if (this.reserveAmmo > 0) {
+                const reloadAmount = Math.min(this.currentWeapon.ammo, this.reserveAmmo);
+                this.currentAmmo = reloadAmount;
+                this.reserveAmmo -= reloadAmount;
+                this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
+            }
+            return; // No ammo
+        }
+        
         const bullet = this.bullets.get(this.player.x, this.player.y);
         
         if (bullet) {
@@ -196,6 +274,11 @@ export default class GameScene extends Phaser.Scene {
             const velocityY = Math.sin(angle) * bulletSpeed;
             
             bullet.setVelocity(velocityX, velocityY);
+            
+            // Update ammo
+            this.currentAmmo--;
+            this.lastShotTime = now;
+            this.hud.updateAmmo(this.currentAmmo, this.reserveAmmo);
             
             // Send bullet to other players if multiplayer
             if (this.isMultiplayer) {
@@ -373,6 +456,23 @@ export default class GameScene extends Phaser.Scene {
     }
 
     shutdown() {
+        // Clean up UI
+        if (this.hud) {
+            this.hud.destroy();
+        }
+        if (this.buyMenu) {
+            this.buyMenu.destroy();
+        }
+        if (this.roundTimer) {
+            this.roundTimer.destroy();
+        }
+        
+        // Remove event listeners
+        this.events.off('weaponPurchased');
+        this.events.off('phaseChanged');
+        this.events.off('timerUpdate');
+        this.events.off('roundChanged');
+        
         // Clean up multiplayer when leaving scene
         if (this.isMultiplayer) {
             rtdb.stopUpdating();
@@ -384,7 +484,7 @@ export default class GameScene extends Phaser.Scene {
             });
             
             // Clean up remote bullets
-            Object.keys(this.remoteBullets).forEach((bulletId) => {
+            Object.keys(this.remoteBullets || {}).forEach((bulletId) => {
                 if (this.remoteBullets[bulletId] && this.remoteBullets[bulletId].active) {
                     this.remoteBullets[bulletId].destroy();
                 }

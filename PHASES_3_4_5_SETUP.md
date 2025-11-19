@@ -2,40 +2,42 @@
 
 ## 🚀 10-Minute Setup
 
-### Step 1: Deploy Cloud Functions (5 minutes)
+### Step 1: Push Client to GitHub (1 minute)
 
 ```bash
-# Install dependencies
-cd functions
-npm install
+git add .
+git commit -m "Add Phases 3-5"
+git push origin main
+```
 
-# Deploy to Firebase
-cd ..
-firebase deploy --only functions
+**Render.com auto-deploys** (~2-3 minutes)
+
+### Step 2: Deploy Functions via Replit (5 minutes)
+
+**Open Replit Shell and run:**
+
+```bash
+# One-time setup (if not done)
+npm install -g firebase-tools
+firebase login --no-localhost
+firebase use tactical-shooter-16e81
+
+# Deploy functions and rules
+firebase deploy --only functions,database
 ```
 
 **Wait for deployment** (~3-4 minutes)
 
-### Step 2: Deploy Database Rules (1 minute)
+See **REPLIT_DEPLOY_GUIDE.md** for detailed instructions.
 
-```bash
-firebase deploy --only database
-```
+### Step 3: Enable Blaze Plan (2 minutes)
 
-### Step 3: Build & Deploy Client (4 minutes)
+Cloud Functions require Firebase Blaze plan:
 
-```bash
-# Build client
-cd client
-npm install
-npm run build
-
-# Deploy
-cd ..
-firebase deploy --only hosting
-```
-
-Or push to GitHub for Render.com auto-deploy.
+1. Go to [Firebase Console](https://console.firebase.google.com/project/tactical-shooter-16e81)
+2. Click "Upgrade" → Select "Blaze"
+3. Add payment method
+4. Cost: ~$12/month for 10 players
 
 ### Step 4: Test! (30 seconds)
 
