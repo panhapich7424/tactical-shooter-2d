@@ -28,7 +28,7 @@ export default class MatchmakingScene extends Phaser.Scene {
         this.statusText.setOrigin(0.5);
         
         // Player count
-        this.playerCountText = this.add.text(width / 2, height / 2 - 50, '0/10 Players', {
+        this.playerCountText = this.add.text(width / 2, height / 2 - 50, '0/4 Players', {
             fontSize: '48px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -171,10 +171,10 @@ export default class MatchmakingScene extends Phaser.Scene {
     listenForMatch() {
         matchmaking.listenToQueue((queueData) => {
             const playersInQueue = Object.keys(queueData || {}).length;
-            this.playerCountText.setText(`${playersInQueue}/10 Players`);
+            this.playerCountText.setText(`${playersInQueue}/4 Players`);
             
-            // Check if match is ready (10 players)
-            if (playersInQueue >= 10) {
+            // Check if match is ready (4 players for 2v2)
+            if (playersInQueue >= 4) {
                 this.onMatchFound(queueData);
             }
         });

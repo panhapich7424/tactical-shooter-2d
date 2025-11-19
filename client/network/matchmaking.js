@@ -55,21 +55,21 @@ export class MatchmakingManager {
         }
     }
 
-    // Create match when 10 players found
+    // Create match when 4 players found (2v2)
     async createMatch(queueData) {
         const players = Object.keys(queueData);
         
-        if (players.length < 10) {
+        if (players.length < 4) {
             throw new Error('Not enough players');
         }
 
-        // Take first 10 players
-        const matchPlayers = players.slice(0, 10);
+        // Take first 4 players
+        const matchPlayers = players.slice(0, 4);
         
-        // Shuffle and assign teams
+        // Shuffle and assign teams (2v2)
         const shuffled = this.shuffleArray([...matchPlayers]);
-        const redTeam = shuffled.slice(0, 5);
-        const blueTeam = shuffled.slice(5, 10);
+        const redTeam = shuffled.slice(0, 2);
+        const blueTeam = shuffled.slice(2, 4);
 
         // Create match
         const matchRef = push(ref(this.db, 'matches'));
@@ -94,7 +94,7 @@ export class MatchmakingManager {
 
         // Initialize player data
         matchPlayers.forEach((playerId, index) => {
-            const team = index < 5 ? 'red' : 'blue';
+            const team = index < 2 ? 'red' : 'blue';
             matchData.players[playerId] = {
                 team,
                 alive: true,

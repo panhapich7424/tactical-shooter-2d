@@ -48,7 +48,7 @@ export default class MenuScene extends Phaser.Scene {
         });
         
         // Competitive button
-        const competitiveButton = this.add.text(width / 2, height / 2 + 80, 'COMPETITIVE (5v5)', {
+        const competitiveButton = this.add.text(width / 2, height / 2 + 80, 'COMPETITIVE (2v2)', {
             fontSize: '28px',
             fontFamily: 'Arial',
             color: '#ffffff',
