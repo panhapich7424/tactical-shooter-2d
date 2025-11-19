@@ -131,6 +131,33 @@ export class MatchmakingManager {
         });
     }
 
+    // Store match ID for players to find
+    async storeMatchId(matchId, players) {
+        const playersKey = players.sort().join('_');
+        const matchLookupRef = ref(this.db, `matchmaking/matches/${playersKey}`);
+        await set(matchLookupRef, {
+            matchId,
+            createdAt: Date.now()
+        });
+    }
+
+    // Get match ID for a set of players
+    async getMatchIdForPlayers(players) {
+        const playersKey = players.sort().join('_');
+        const matchLookupRef = ref(this.db, `matchmaking/matches/${playersKey}`);
+        
+        // Try multiple times with delay
+        for (let i = 0; i < 10; i++) {
+            const snapshot = await get(matchLookupRef);
+            if (snapshot.exists()) {
+                return snapshot.val().matchId;
+            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        return null;
+    }
+
     // Shuffle array (Fisher-Yates)
     shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {

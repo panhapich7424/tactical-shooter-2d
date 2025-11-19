@@ -165,20 +165,35 @@ export default class GameScene extends Phaser.Scene {
 
     async loadMatchData() {
         try {
+            // Wait a bit for match to be created
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             this.matchData = await matchmaking.getMatch(this.matchId);
+            
+            if (!this.matchData) {
+                console.error('Match data not found, using defaults');
+                this.myTeam = 'red'; // Default team
+                return;
+            }
+            
             const userId = rtdb.getUserId();
             
             // Determine my team
-            if (this.matchData.teams.red.includes(userId)) {
+            if (this.matchData.teams && this.matchData.teams.red && this.matchData.teams.red.includes(userId)) {
                 this.myTeam = 'red';
-            } else if (this.matchData.teams.blue.includes(userId)) {
+            } else if (this.matchData.teams && this.matchData.teams.blue && this.matchData.teams.blue.includes(userId)) {
                 this.myTeam = 'blue';
+            } else {
+                // Fallback to red team if not found
+                this.myTeam = 'red';
+                console.warn('Player not found in teams, defaulting to red');
             }
             
             console.log('Match loaded. My team:', this.myTeam);
             console.log('Match data:', this.matchData);
         } catch (error) {
             console.error('Failed to load match data:', error);
+            this.myTeam = 'red'; // Default team on error
         }
     }
 
@@ -265,6 +280,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+        // Check if player exists
+        if (!this.player || !this.player.body) {
+            return;
+        }
+        
         // Update interpolation for remote players
         if (this.isMultiplayer) {
             this.interpolation.update(delta / 1000);

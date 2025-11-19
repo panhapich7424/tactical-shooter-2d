@@ -184,41 +184,49 @@ export default class MatchmakingScene extends Phaser.Scene {
         this.statusText.setText('Match found! Loading...');
         this.searchingDots.setText('');
         
-        // Create match (only first player creates it)
-        const players = Object.keys(queueData);
-        const userId = rtdb.getUserId();
+        // Stop listening to prevent multiple triggers
+        matchmaking.stopListening();
         
-        let matchId;
-        if (players[0] === userId) {
-            // First player creates the match
-            matchId = await matchmaking.createMatch(queueData);
-            console.log('Created match:', matchId);
-        } else {
-            // Other players wait for match to be created
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            // Find the match they're in
-            matchId = await this.findMyMatch();
-        }
-        
-        if (matchId) {
-            // Wait a moment for all players to see the message
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            // Create match (only first player creates it)
+            const players = Object.keys(queueData).sort(); // Sort for consistency
+            const userId = rtdb.getUserId();
             
-            // Start game
-            this.scene.start('GameScene', {
-                multiplayer: true,
-                matchId: matchId,
-                competitive: true
-            });
+            let matchId;
+            if (players[0] === userId) {
+                // First player creates the match
+                console.log('I am host, creating match...');
+                matchId = await matchmaking.createMatch(queueData);
+                console.log('Created match:', matchId);
+                
+                // Store match ID in a shared location
+                await matchmaking.storeMatchId(matchId, players);
+            } else {
+                // Other players wait and retrieve match ID
+                console.log('Waiting for host to create match...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                matchId = await matchmaking.getMatchIdForPlayers(players);
+                console.log('Retrieved match ID:', matchId);
+            }
+            
+            if (matchId) {
+                // Wait a moment for all players to sync
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Start game
+                this.scene.start('GameScene', {
+                    multiplayer: true,
+                    matchId: matchId,
+                    competitive: true
+                });
+            } else {
+                throw new Error('Failed to get match ID');
+            }
+        } catch (error) {
+            console.error('Error starting match:', error);
+            this.statusText.setText('Failed to start match. Try again.');
+            this.cancelMatchmaking();
         }
-    }
-
-    async findMyMatch() {
-        // Look for a match that includes this player
-        const userId = rtdb.getUserId();
-        // This would need a Cloud Function to properly find the match
-        // For now, we'll use a simple approach
-        return 'match_' + Date.now(); // Temporary
     }
 
     startSearchingAnimation() {
